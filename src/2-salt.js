@@ -1,15 +1,36 @@
-const { scryptSync, randomBytes, timingSafeEqual } = require('crypto');
+/**
+ * USE SAMPLE CODE FROM THIS FILE TO STORE AND VALIDATE USER PASSWORDS IN ANY AUTHENTICATION CONTROLLER
+ */
+const { promisify } = require('util');
+const { scrypt, randomBytes, timingSafeEqual } = require('crypto');
+
+const randomBytesAsync = promisify(randomBytes);
+const scryptAsync = promisify(scrypt);
 
 // An in-memory users database
 const USERS = [];
 
 // define the signup logic in signup controller
-function signup(email, password) {
+async function signup(email, password) {
     // Generates cryptographically strong pseudorandom data depending upon the `size` argument that indicates the number of bytes (Buffer) to generate.
-    const salt = randomBytes(16).toString('hex'); // synchronous process
+    let salt = undefined;
+    try {
+        const bytesBuffer = await randomBytesAsync(16);
+        salt = bytesBuffer.toString('hex');
+    } catch (err) {
+        console.error({ err });
+        throw err;
+    }
 
     // use scrypt (a computationally and memory-wise expensive PBKDF operation in order to make brute-force attacks unrewarding) to hash the password along with the generated salt
-    const hashedPassword = scryptSync(password, salt, 64).toString('hex');
+    let hashedPassword = undefined;
+    try {
+        const derivedKey = await scryptAsync(password, salt, 64);
+        hashedPassword = derivedKey.toString('hex');
+    } catch (err) {
+        console.error({ err });
+        throw err;
+    }
 
     // finally, store the hashed password along with its generated salt in the database
     const user = { email, password: `${salt}:${hashedPassword}` };
@@ -19,13 +40,13 @@ function signup(email, password) {
 }
 
 // define the login logic in login controller
-function login(email, password) {
+async function login(email, password) {
     // Get user from the database
     const user = USERS.find((usr) => usr.email === email);
 
     // Grab the salt from stored password and regenerate the password hash
     const [salt, key] = user.password.split(':');
-    const hashedBuffer = scryptSync(password, salt, 64);
+    const hashedBuffer = await scryptAsync(password, salt, 64);
 
     // Instead of directly comparing the hashed strings of the password, use the `timingSafeEqual` function to prevent the timing attacks (where hackers measure the amount of time it takes to perform an operation to obtain information about the value)
     const keyBuffer = Buffer.from(key, 'hex');
@@ -39,8 +60,10 @@ function login(email, password) {
 }
 
 // test the authentication flow
-const user = signup('fahad@example.com', 'Abcd123!');
-console.log({ user });
+(async () => {
+    const user = await signup('fahad@example.com', 'Abcd123!');
+    console.log({ user });
 
-const result = login('fahad@example.com', 'Abcd123!');
-console.log(result);
+    const result = await login('fahad@example.com', 'Abcd123!');
+    console.log(result);
+})();
