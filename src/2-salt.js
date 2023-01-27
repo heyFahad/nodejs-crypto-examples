@@ -42,5 +42,5 @@ function login(email, password) {
 const user = signup('fahad@example.com', 'Abcd123!');
 console.log({ user });
 
-const result = login('fahad@example.com', 'Abcd123');
+const result = login('fahad@example.com', 'Abcd123!');
 console.log(result);
